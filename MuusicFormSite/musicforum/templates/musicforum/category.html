@@ -1,0 +1,20 @@
+﻿{% extends 'musicforum/base.html' %}
+
+{% block content %}
+    <h2>{{ category.title }}</h2>
+    <p>{{ category.description }}</p>
+
+    {% if discussions %}
+        <ul class="discussion-list">
+            {% for item in discussions %}
+                <li>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.content|truncatechars:120 }}</p>
+                    <a href="{% url 'musicforum:discussion' category.slug item.id %}">Читать тему</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>В этой категории пока нет тем.</p>
+    {% endif %}
+{% endblock %}

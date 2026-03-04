@@ -1,0 +1,15 @@
+﻿{% extends 'musicforum/base.html' %}
+
+{% block content %}
+    <h2>{{ title|capfirst }} ({{ categories|length }})</h2>
+
+    <ul class="category-cards">
+        {% for cat in categories %}
+            <li>
+                <h3>{{ cat.title }}</h3>
+                <p>{{ cat.description|default:"Описание появится позже" }}</p>
+                <a href="{% url 'musicforum:category' cat.slug %}">Перейти</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}

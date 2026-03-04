@@ -1,0 +1,9 @@
+﻿{% extends 'musicforum/base.html' %}
+
+{% block content %}
+    <h2>{{ discussion.title }}</h2>
+    <p>Категория: <a href="{% url 'musicforum:category' category.slug %}">{{ category.title }}</a></p>
+    <p>Автор: {{ discussion.author }}</p>
+    <p>Дата: {{ discussion.created_at|date:"d.m.Y" }}</p>
+    <article>{{ discussion.content }}</article>
+{% endblock %}

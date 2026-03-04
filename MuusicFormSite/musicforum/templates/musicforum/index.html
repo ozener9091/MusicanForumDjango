@@ -1,0 +1,23 @@
+﻿{% extends 'musicforum/base.html' %}
+
+{% block content %}
+    {% include 'musicforum/includes/forum_nav.html' %}
+
+    <h2>{{ title|capfirst }}</h2>
+
+    {% if discussions %}
+        <ul class="discussion-list">
+            {% for item in discussions %}
+                <li>
+                    <h3>{{ item.title|capfirst }}</h3>
+                    <p>{{ item.content|truncatechars:110 }}</p>
+                    <p>Автор: {{ item.author|default:"Аноним" }}</p>
+                    <p>Дата: {{ item.created_at|date:"d.m.Y" }}</p>
+                    <a href="{% url 'musicforum:discussion' item.category item.id %}">Открыть обсуждение</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Обсуждения пока отсутствуют.</p>
+    {% endif %}
+{% endblock %}
