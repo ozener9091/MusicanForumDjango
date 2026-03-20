@@ -1,15 +1,19 @@
-﻿{% load static %}
+{% load static %}
 {% load musicforum_tags %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title|default:"Форум"|capfirst }}</title>
     <link rel="stylesheet" href="{% static 'musicforum/css/styles.css' %}">
 </head>
 <body>
     <header class="site-header">
-        <h1>{% forum_name %}</h1>
+        <div>
+            <p class="site-kicker">Django + SQLite + ORM</p>
+            <h1>{% forum_name %}</h1>
+        </div>
         <nav>
             <ul class="menu">
                 {% for item in menu %}
@@ -19,14 +23,25 @@
         </nav>
     </header>
 
-    <aside class="sidebar">
-        <h3>Рубрики</h3>
-        {% show_categories current_category %}
-    </aside>
+    <div class="layout">
+        <aside class="sidebar">
+            <h3>Рубрики</h3>
+            {% show_categories current_category %}
+            <a class="button button-secondary sidebar-button" href="{% url 'musicforum:discussion_create' %}">Создать тему</a>
+        </aside>
 
-    <main class="content">
-        {% block content %}{% endblock %}
-    </main>
+        <main class="content">
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
 
     <footer class="footer">
         <p>Год: {% now "Y" %}</p>

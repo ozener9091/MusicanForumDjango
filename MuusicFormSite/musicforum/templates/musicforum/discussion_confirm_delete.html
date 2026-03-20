@@ -1,0 +1,17 @@
+{% extends 'musicforum/base.html' %}
+
+{% block content %}
+    <div class="detail-card">
+        <h2>{{ title }}</h2>
+        <p>Вы действительно хотите удалить тему <strong>{{ discussion.title }}</strong>?</p>
+        <p>После удаления запись исчезнет из базы данных.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="button-row">
+                <button class="button button-danger" type="submit">Удалить тему</button>
+                <a class="button button-secondary" href="{% url 'musicforum:discussion' discussion.slug %}">Отмена</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}

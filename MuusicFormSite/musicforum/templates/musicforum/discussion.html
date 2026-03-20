@@ -1,9 +1,32 @@
-﻿{% extends 'musicforum/base.html' %}
+{% extends 'musicforum/base.html' %}
 
 {% block content %}
-    <h2>{{ discussion.title }}</h2>
-    <p>Категория: <a href="{% url 'musicforum:category' category.slug %}">{{ category.title }}</a></p>
-    <p>Автор: {{ discussion.author }}</p>
-    <p>Дата: {{ discussion.created_at|date:"d.m.Y" }}</p>
-    <article>{{ discussion.content }}</article>
+    <article class="detail-card">
+        <div class="detail-header">
+            <div>
+                <p class="detail-meta">
+                    Категория:
+                    <a href="{% url 'musicforum:category' category.slug %}">{{ category.title }}</a>
+                </p>
+                <h2>{{ discussion.title }}</h2>
+            </div>
+            <span class="status-badge status-{{ discussion.status }}">{{ discussion.get_status_display }}</span>
+        </div>
+
+        <div class="detail-meta-grid">
+            <p><strong>Автор:</strong> {{ discussion.author }}</p>
+            <p><strong>Создано:</strong> {{ discussion.created_at|date:"d.m.Y H:i" }}</p>
+            <p><strong>Обновлено:</strong> {{ discussion.updated_at|date:"d.m.Y H:i" }}</p>
+            <p><strong>Слаг:</strong> {{ discussion.slug }}</p>
+        </div>
+
+        <div class="article-body">
+            {{ discussion.content|linebreaks }}
+        </div>
+
+        <div class="button-row">
+            <a class="button" href="{% url 'musicforum:discussion_update' discussion.slug %}">Редактировать</a>
+            <a class="button button-danger" href="{% url 'musicforum:discussion_delete' discussion.slug %}">Удалить</a>
+        </div>
+    </article>
 {% endblock %}

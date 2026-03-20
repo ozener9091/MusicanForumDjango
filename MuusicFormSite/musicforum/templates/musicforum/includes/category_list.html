@@ -1,10 +1,12 @@
-﻿<ul class="category-list">
+<ul class="category-list">
     <li>
         <a href="{% url 'musicforum:categories' %}">Все категории</a>
     </li>
     {% for cat in categories %}
         <li>
-            <a href="{% url 'musicforum:category' cat.slug %}"{% if cat.slug == selected_slug %} class="active"{% endif %}>{{ cat.title }}</a>
+            <a href="{% url 'musicforum:category' cat.slug %}"{% if cat.slug == selected_slug %} class="active"{% endif %}>
+                {{ cat.title }} <span>({{ cat.count }})</span>
+            </a>
         </li>
     {% endfor %}
 </ul>

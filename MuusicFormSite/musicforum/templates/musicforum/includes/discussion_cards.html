@@ -1,0 +1,23 @@
+{% if discussions %}
+    <ul class="discussion-list">
+        {% for item in discussions %}
+            <li>
+                <div class="card-header">
+                    <h3>{{ item.title }}</h3>
+                    <span class="status-badge status-{{ item.status }}">{{ item.get_status_display }}</span>
+                </div>
+                <p>{{ item.content|truncatechars:140 }}</p>
+                <p class="card-meta">
+                    Автор: {{ item.author }} | Категория: {{ item.get_category_display }} | Дата: {{ item.created_at|date:"d.m.Y H:i" }}
+                </p>
+                <div class="button-row">
+                    <a class="button" href="{% url 'musicforum:discussion' item.slug %}">Открыть по слагу</a>
+                    <a class="button button-secondary" href="{% url 'musicforum:discussion_update' item.slug %}">Изменить</a>
+                    <a class="button button-danger" href="{% url 'musicforum:discussion_delete' item.slug %}">Удалить</a>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>{{ empty_message }}</p>
+{% endif %}

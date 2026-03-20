@@ -1,0 +1,78 @@
+{% extends 'musicforum/base.html' %}
+
+{% block content %}
+    <div class="page-heading">
+        <div>
+            <h2>{{ title }}</h2>
+        </div>
+        {% if discussion %}
+            <a class="button button-secondary" href="{% url 'musicforum:discussion' discussion.slug %}">К теме</a>
+        {% endif %}
+    </div>
+
+    <form class="editor-form" method="post">
+        {% csrf_token %}
+
+        <div class="form-field">
+            <label for="id_title">Название темы</label>
+            <input id="id_title" name="title" type="text" value="{{ form_data.title }}" placeholder="Например, Как выбрать первый синтезатор">
+            {% if form_errors.title %}
+                <div class="form-error">{{ form_errors.title }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-field">
+            <label for="id_slug">Слаг</label>
+            <input id="id_slug" name="slug" type="text" value="{{ form_data.slug }}" placeholder="kak-vybrat-pervyj-sintezator">
+            <small>Если оставить поле пустым, слаг создастся автоматически.</small>
+            {% if form_errors.slug %}
+                <div class="form-error">{{ form_errors.slug }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-field">
+            <label for="id_author">Автор</label>
+            <input id="id_author" name="author" type="text" value="{{ form_data.author }}" placeholder="Ваше имя">
+            {% if form_errors.author %}
+                <div class="form-error">{{ form_errors.author }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-field">
+            <label for="id_category">Категория</label>
+            <select id="id_category" name="category">
+                {% for value, label in category_options %}
+                    <option value="{{ value }}"{% if form_data.category == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            {% if form_errors.category %}
+                <div class="form-error">{{ form_errors.category }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-field">
+            <label for="id_status">Статус</label>
+            <select id="id_status" name="status">
+                {% for value, label in status_options %}
+                    <option value="{{ value }}"{% if form_data.status == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            {% if form_errors.status %}
+                <div class="form-error">{{ form_errors.status }}</div>
+            {% endif %}
+        </div>
+
+        <div class="form-field">
+            <label for="id_content">Текст сообщения</label>
+            <textarea id="id_content" name="content" rows="8" placeholder="Опишите вопрос, опыт или проблему, которую хотите обсудить.">{{ form_data.content }}</textarea>
+            {% if form_errors.content %}
+                <div class="form-error">{{ form_errors.content }}</div>
+            {% endif %}
+        </div>
+
+        <div class="button-row">
+            <button class="button" type="submit">{{ submit_label }}</button>
+            <a class="button button-secondary" href="{% if discussion %}{% url 'musicforum:discussion' discussion.slug %}{% else %}{% url 'musicforum:index' %}{% endif %}">Отмена</a>
+        </div>
+    </form>
+{% endblock %}

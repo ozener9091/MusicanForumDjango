@@ -1,13 +1,15 @@
-﻿{% extends 'musicforum/base.html' %}
+{% extends 'musicforum/base.html' %}
 
 {% block content %}
-    <h2>{{ title|capfirst }} ({{ categories|length }})</h2>
+    <h2>{{ title }} ({{ categories|length }})</h2>
+    <p class="lead">Категории описаны через перечисление `TextChoices`, а количество тем считается из базы данных.</p>
 
     <ul class="category-cards">
         {% for cat in categories %}
             <li>
                 <h3>{{ cat.title }}</h3>
-                <p>{{ cat.description|default:"Описание появится позже" }}</p>
+                <p>{{ cat.description|default:"Описание появится позже." }}</p>
+                <p><strong>Тем в базе:</strong> {{ cat.count }}</p>
                 <a href="{% url 'musicforum:category' cat.slug %}">Перейти</a>
             </li>
         {% endfor %}

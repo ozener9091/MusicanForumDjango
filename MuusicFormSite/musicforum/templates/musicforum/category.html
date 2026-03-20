@@ -1,20 +1,14 @@
-﻿{% extends 'musicforum/base.html' %}
+{% extends 'musicforum/base.html' %}
 
 {% block content %}
-    <h2>{{ category.title }}</h2>
-    <p>{{ category.description }}</p>
+    <div class="page-heading">
+        <div>
+            <h2>{{ category.title }}</h2>
+            <p class="lead">{{ category.description }}</p>
+        </div>
+        <a class="button" href="{% url 'musicforum:discussion_create' %}?category={{ category.slug }}">Новая тема в категории</a>
+    </div>
 
-    {% if discussions %}
-        <ul class="discussion-list">
-            {% for item in discussions %}
-                <li>
-                    <h3>{{ item.title }}</h3>
-                    <p>{{ item.content|truncatechars:120 }}</p>
-                    <a href="{% url 'musicforum:discussion' category.slug item.id %}">Читать тему</a>
-                </li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <p>В этой категории пока нет тем.</p>
-    {% endif %}
+    {% include 'musicforum/includes/discussion_filters.html' %}
+    {% include 'musicforum/includes/discussion_cards.html' with empty_message='В этой категории пока нет подходящих тем.' %}
 {% endblock %}

@@ -1,6 +1,28 @@
-﻿{% extends 'musicforum/base.html' %}
+{% extends 'musicforum/base.html' %}
 
 {% block content %}
-    <h2>{{ title|capfirst }}</h2>
-    <p>Форум для музыкантов: обмен опытом, обсуждение инструментов и записи.</p>
+    <h2>{{ title }}</h2>
+    <p class="lead">Форум работает с базой данных через Django ORM, а часть статистики дополнительно извлекается прямыми SQL-запросами.</p>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <strong>{{ total_discussions }}</strong>
+            <span>всего тем в БД</span>
+        </div>
+        <div class="stat-card">
+            <strong>{{ published_discussions }}</strong>
+            <span>опубликованных тем</span>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        {% for status, count in sql_status_counts.items %}
+            <div class="stat-card">
+                <strong>{{ count }}</strong>
+                <span>SQL: статус `{{ status }}`</span>
+            </div>
+        {% endfor %}
+    </div>
+
+    <p>На сайте доступны создание, изменение, удаление, выборка, фильтрация и сортировка записей. Детальная страница темы открывается по ее слагу, а данные в проекте обрабатываются без `Django Forms`.</p>
 {% endblock %}

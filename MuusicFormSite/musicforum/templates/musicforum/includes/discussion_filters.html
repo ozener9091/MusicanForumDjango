@@ -1,0 +1,42 @@
+<form class="filter-form" method="get">
+    <label>
+        Поиск
+        <input type="text" name="q" value="{{ search_query }}" placeholder="По названию, тексту или автору">
+    </label>
+
+    {% if not category_locked %}
+        <label>
+            Категория
+            <select name="category">
+                <option value="">Все категории</option>
+                {% for value, label in category_options %}
+                    <option value="{{ value }}"{% if selected_category == value %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+    {% endif %}
+
+    <label>
+        Статус
+        <select name="status">
+            <option value="">Все статусы</option>
+            {% for value, label in status_options %}
+                <option value="{{ value }}"{% if selected_status == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <label>
+        Сортировка
+        <select name="ordering">
+            {% for value, label in ordering_options %}
+                <option value="{{ value }}"{% if selected_ordering == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+
+    <div class="button-row">
+        <button class="button" type="submit">Применить</button>
+        <a class="button button-secondary" href="{% if category_locked %}{% url 'musicforum:category' category.slug %}{% else %}{% url 'musicforum:index' %}{% endif %}">Сбросить</a>
+    </div>
+</form>
