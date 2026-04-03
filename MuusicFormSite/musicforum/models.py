@@ -32,7 +32,9 @@ class DiscussionQuerySet(models.QuerySet):
             Q(title__icontains=query)
             | Q(content__icontains=query)
             | Q(author__icontains=query)
-        )
+            | Q(tags__name__icontains=query)
+            | Q(comments__text__icontains=query)
+        ).distinct()
 
     def for_category(self, category_slug):
         if not category_slug:
@@ -59,6 +61,34 @@ class DiscussionManager(models.Manager.from_queryset(DiscussionQuerySet)):
             .annotate(total=Count("id"))
             .values_list("category", "total")
         )
+
+
+class Tag(models.Model):
+    name = models.CharField("Название тега", max_length=100, unique=True)
+    slug = models.SlugField("Слаг", max_length=100, unique=True, allow_unicode=True)
+
+    class Meta:
+        ordering = ("name",)
+        verbose_name = "тег"
+        verbose_name_plural = "теги"
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        self.slug = self._build_unique_slug()
+        super().save(*args, **kwargs)
+
+    def _build_unique_slug(self):
+        base_slug = slugify(self.slug or self.name, allow_unicode=True) or "tag"
+        slug = base_slug
+        counter = 2
+
+        while self.__class__.objects.exclude(pk=self.pk).filter(slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        return slug
 
 
 class Discussion(models.Model):
@@ -97,6 +127,7 @@ class Discussion(models.Model):
     content = models.TextField("Содержание")
     created_at = models.DateTimeField("Создано", auto_now_add=True)
     updated_at = models.DateTimeField("Изменено", auto_now=True)
+    tags = models.ManyToManyField(Tag, verbose_name="Теги", related_name="discussions", blank=True)
 
     objects = DiscussionManager()
 
@@ -115,7 +146,10 @@ class Discussion(models.Model):
 
     def save(self, *args, **kwargs):
         self.slug = self._build_unique_slug()
+        creating = self.pk is None
         super().save(*args, **kwargs)
+        if creating:
+            DiscussionPassport.objects.get_or_create(discussion=self)
 
     def _build_unique_slug(self):
         base_slug = slugify(self.slug or self.title, allow_unicode=True) or "discussion"
@@ -155,3 +189,41 @@ class Discussion(models.Model):
     @classmethod
     def get_ordering_options(cls):
         return cls.ORDERING_OPTIONS
+
+
+class DiscussionPassport(models.Model):
+    discussion = models.OneToOneField(
+        Discussion,
+        verbose_name="Обсуждение",
+        related_name="passport",
+        on_delete=models.CASCADE,
+    )
+    views_count = models.PositiveIntegerField("Количество просмотров", default=0)
+    bookmarks_count = models.PositiveIntegerField("Количество закладок", default=0)
+
+    class Meta:
+        verbose_name = "паспорт обсуждения"
+        verbose_name_plural = "паспорта обсуждений"
+
+    def __str__(self):
+        return f"Паспорт: {self.discussion}"
+
+
+class Comment(models.Model):
+    discussion = models.ForeignKey(
+        Discussion,
+        verbose_name="Обсуждение",
+        related_name="comments",
+        on_delete=models.CASCADE,
+    )
+    author = models.CharField("Автор комментария", max_length=100)
+    text = models.TextField("Текст комментария")
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at", "id")
+        verbose_name = "комментарий"
+        verbose_name_plural = "комментарии"
+
+    def __str__(self):
+        return f"{self.author}: {self.text[:40]}"

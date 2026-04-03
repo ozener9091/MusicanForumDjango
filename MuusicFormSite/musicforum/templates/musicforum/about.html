@@ -2,7 +2,7 @@
 
 {% block content %}
     <h2>{{ title }}</h2>
-    <p class="lead">Форум работает с базой данных через Django ORM, а часть статистики дополнительно извлекается прямыми SQL-запросами.</p>
+    <p class="lead">Страница показывает выборки, группировку, агрегаты, вычисляемые поля и вычисления на стороне СУБД через Django ORM.</p>
 
     <div class="stats-grid">
         <div class="stat-card">
@@ -13,16 +13,58 @@
             <strong>{{ published_discussions }}</strong>
             <span>опубликованных тем</span>
         </div>
+        <div class="stat-card">
+            <strong>{{ active_discussions }}</strong>
+            <span>тем без архива через exclude()</span>
+        </div>
+        <div class="stat-card">
+            <strong>{{ average_comments|floatformat:2 }}</strong>
+            <span>среднее число комментариев через Avg()</span>
+        </div>
+        <div class="stat-card">
+            <strong>{{ average_views|floatformat:2 }}</strong>
+            <span>среднее число просмотров через Avg()</span>
+        </div>
     </div>
 
     <div class="stats-grid">
-        {% for status, count in sql_status_counts.items %}
+        {% for item in orm_status_counts %}
             <div class="stat-card">
-                <strong>{{ count }}</strong>
-                <span>SQL: статус `{{ status }}`</span>
+                <strong>{{ item.total }}</strong>
+                <span>Статус: {{ item.status }}</span>
             </div>
         {% endfor %}
     </div>
 
-    <p>На сайте доступны создание, изменение, удаление, выборка, фильтрация и сортировка записей. Детальная страница темы открывается по ее слагу, а данные в проекте обрабатываются без `Django Forms`.</p>
+    <div class="stats-grid">
+        {% for item in orm_tag_counts %}
+            {% if item.tags__name %}
+                <div class="stat-card">
+                    <strong>{{ item.total }}</strong>
+                    <span>Тег: {{ item.tags__name }}</span>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <section class="detail-card">
+        <h3>Темы с вычисляемым полем activity_score</h3>
+        <ul class="comment-list">
+            {% for item in top_discussions %}
+                <li>
+                    <p><strong>{{ item.title }}</strong></p>
+                    <p class="detail-meta">
+                        Просмотры: {{ item.passport.views_count }} |
+                        Комментарии: {{ item.comment_count }} |
+                        Теги: {{ item.tag_count }} |
+                        activity_score: {{ item.activity_score }}
+                    </p>
+                </li>
+            {% empty %}
+                <li>Темы для статистики пока отсутствуют.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <p>На сайте доступны создание, изменение, удаление, выборка, фильтрация и сортировка записей. Поиск использует Q, статистика строится через values(), annotate(), Count(), Avg(), F() и Value(), а детальная страница темы открывается по ее слагу без использования Django Forms.</p>
 {% endblock %}

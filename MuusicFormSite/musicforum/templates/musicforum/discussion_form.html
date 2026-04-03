@@ -70,6 +70,23 @@
             {% endif %}
         </div>
 
+        <div class="form-field">
+            <span class="field-label">Теги</span>
+            <div class="tag-selector">
+                {% for tag in all_tags %}
+                    <label class="tag-option">
+                        <input type="checkbox" name="tags" value="{{ tag.id }}"{% if tag.id|stringformat:"s" in form_data.tags %} checked{% endif %}>
+                        <span>{{ tag.name }}</span>
+                    </label>
+                {% empty %}
+                    <p>Теги появятся после миграции с начальными данными.</p>
+                {% endfor %}
+            </div>
+            {% if form_errors.tags %}
+                <div class="form-error">{{ form_errors.tags }}</div>
+            {% endif %}
+        </div>
+
         <div class="button-row">
             <button class="button" type="submit">{{ submit_label }}</button>
             <a class="button button-secondary" href="{% if discussion %}{% url 'musicforum:discussion' discussion.slug %}{% else %}{% url 'musicforum:index' %}{% endif %}">Отмена</a>

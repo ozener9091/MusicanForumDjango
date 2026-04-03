@@ -27,6 +27,9 @@
         <aside class="sidebar">
             <h3>Рубрики</h3>
             {% show_categories current_category %}
+            <p class="sidebar-summary">Опубликовано тем: {% published_discussions_total %}</p>
+            <h3>Популярные теги</h3>
+            {% show_popular_tags %}
             <a class="button button-secondary sidebar-button" href="{% url 'musicforum:discussion_create' %}">Создать тему</a>
         </aside>
 

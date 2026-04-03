@@ -10,6 +10,14 @@
                 <p class="card-meta">
                     Автор: {{ item.author }} | Категория: {{ item.get_category_display }} | Дата: {{ item.created_at|date:"d.m.Y H:i" }}
                 </p>
+                <p class="card-meta">Комментарии: {{ item.comment_count }} | Теги: {{ item.tag_count }}</p>
+                {% if item.tag_count %}
+                    <div class="tag-list">
+                        {% for tag in item.tags.all %}
+                            <span class="tag-badge">#{{ tag.name }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
                 <div class="button-row">
                     <a class="button" href="{% url 'musicforum:discussion' item.slug %}">Открыть по слагу</a>
                     <a class="button button-secondary" href="{% url 'musicforum:discussion_update' item.slug %}">Изменить</a>

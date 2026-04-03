@@ -18,11 +18,39 @@
             <p><strong>Создано:</strong> {{ discussion.created_at|date:"d.m.Y H:i" }}</p>
             <p><strong>Обновлено:</strong> {{ discussion.updated_at|date:"d.m.Y H:i" }}</p>
             <p><strong>Слаг:</strong> {{ discussion.slug }}</p>
+            <p><strong>Комментарии:</strong> {{ discussion.comment_count }}</p>
+            <p><strong>Теги:</strong> {{ discussion.tag_count }}</p>
+            <p><strong>Просмотры:</strong> {{ discussion.passport.views_count }}</p>
+            <p><strong>Закладки:</strong> {{ discussion.passport.bookmarks_count }}</p>
         </div>
+
+        {% if discussion.tag_count %}
+            <div class="tag-list">
+                {% for tag in discussion.tags.all %}
+                    <span class="tag-badge">#{{ tag.name }}</span>
+                {% endfor %}
+            </div>
+        {% endif %}
 
         <div class="article-body">
             {{ discussion.content|linebreaks }}
         </div>
+
+        <section class="comments-section">
+            <h3>Комментарии</h3>
+            {% if discussion.comment_count %}
+                <ul class="comment-list">
+                    {% for comment in discussion.comments.all %}
+                        <li>
+                            <p><strong>{{ comment.author }}</strong> <span class="detail-meta">{{ comment.created_at|date:"d.m.Y H:i" }}</span></p>
+                            <p>{{ comment.text }}</p>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>Комментариев пока нет.</p>
+            {% endif %}
+        </section>
 
         <div class="button-row">
             <a class="button" href="{% url 'musicforum:discussion_update' discussion.slug %}">Редактировать</a>

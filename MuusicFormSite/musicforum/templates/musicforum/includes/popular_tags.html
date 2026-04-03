@@ -1,0 +1,12 @@
+{% if popular_tags %}
+    <ul class="tag-cloud">
+        {% for tag in popular_tags %}
+            <li>
+                <span class="tag-badge">#{{ tag.name }}</span>
+                <span class="tag-total">{{ tag.total }}</span>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p class="sidebar-summary">Теги появятся после заполнения базы.</p>
+{% endif %}
