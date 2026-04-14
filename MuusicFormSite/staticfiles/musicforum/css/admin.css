@@ -1,0 +1,112 @@
+/* Custom Django Admin Styles to match site theme */
+
+body {
+    font-family: "Segoe UI", sans-serif !important;
+    background: linear-gradient(180deg, #f7f7f2 0%, #ecefe6 100%) !important;
+    color: #202321 !important;
+}
+
+#site-name a {
+    color: #fff !important;
+}
+
+#user-tools a {
+    color: #e6fff2 !important;
+}
+
+.module {
+    background: #ffffff !important;
+    border: 1px solid #d6ddd5 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 24px rgba(30, 58, 52, 0.08) !important;
+    color: #202321 !important;
+}
+
+.module h2 {
+    background: #1e3a34 !important;
+    color: #fff !important;
+    border-radius: 16px 16px 0 0 !important;
+    padding: 12px 18px !important;
+    margin: 0 !important;
+}
+
+.changelist-form,
+.change-list,
+.object-tools,
+.submit-row {
+    background: #ffffff !important;
+    border: 1px solid #d6ddd5 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 24px rgba(30, 58, 52, 0.08) !important;
+    color: #202321 !important;
+}
+
+.results th {
+    background: #1e3a34 !important;
+    color: #fff !important;
+}
+
+.results tbody tr:hover {
+    background: #ecefe6 !important;
+}
+
+.button,
+input[type="submit"],
+.submit-row input {
+    background: #155e63 !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 10px 16px !important;
+    font-family: inherit !important;
+}
+
+.button:hover,
+input[type="submit"]:hover,
+.submit-row input:hover {
+    background: #0f4a4e !important;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+select,
+textarea {
+    border: 1px solid #b8c3ba !important;
+    border-radius: 10px !important;
+    padding: 8px 12px !important;
+    font-family: inherit !important;
+    background: #fff !important;
+    color: #202321 !important;
+}
+
+.form-row {
+    background: #ffffff !important;
+    border: 1px solid #d6ddd5 !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+    color: #202321 !important;
+}
+
+.errornote {
+    background: #fee2e2 !important;
+    border: 1px solid #fca5a5 !important;
+    border-radius: 12px !important;
+    color: #b91c1c !important;
+}
+
+.success {
+    background: #dff7e7 !important;
+    border: 1px solid #92c6a0 !important;
+    border-radius: 12px !important;
+    color: #065f46 !important;
+}
+
+a:link {
+    color: #155e63 !important;
+}
+
+a:hover {
+    color: #0f4a4e !important;
+}

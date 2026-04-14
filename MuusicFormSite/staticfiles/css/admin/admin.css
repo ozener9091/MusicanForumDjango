@@ -1,0 +1,42 @@
+#header {
+    background: #1e3a34;
+}
+
+div.breadcrumbs {
+    background: #155e63;
+}
+
+.module h2, .module caption, .inline-group h2 {
+    background: #155e63;
+    color: #fff;
+}
+
+body {
+    font-family: "Segoe UI", sans-serif;
+    background: linear-gradient(180deg, #f7f7f2 0%, #ecefe6 100%);
+    color: #202321;
+}
+
+.module {
+    background: #ffffff;
+    border: 1px solid #d6ddd5;
+    border-radius: 16px;
+    box-shadow: 0 10px 24px rgba(30, 58, 52, 0.08);
+}
+
+.results th {
+    background: #1e3a34;
+    color: #fff;
+}
+
+.button, input[type="submit"] {
+    background: #155e63;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+}
+
+.button:hover, input[type="submit"]:hover {
+    background: #0f4a4e;
+}

@@ -1,8 +1,10 @@
 from django.urls import path
+from django.contrib import admin
 
 from . import views
 
 app_name = "musicforum"
+
 
 urlpatterns = [
     path("", views.index, name="index"),
@@ -14,3 +16,7 @@ urlpatterns = [
     path("discussions/<str:slug>/edit/", views.discussion_update, name="discussion_update"),
     path("discussions/<str:slug>/delete/", views.discussion_delete, name="discussion_delete"),
 ]
+
+admin.site.site_header = "Панель администрирования"
+admin.site.site_title = "Музыкальный форум - Администрирование"
+admin.site.index_title = "Добро пожаловать в панель администрирования Музыкального форума"
