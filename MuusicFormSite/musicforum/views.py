@@ -1,11 +1,15 @@
+﻿import uuid
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib import messages
 from django.db.models import Avg, Count, F, IntegerField, Prefetch, Value
 from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.shortcuts import redirect, render
-from django.utils.text import slugify
 
 from .data import get_menu
+from .forms import DiscussionModelForm, DiscussionSimpleForm, UploadFileForm
 from .models import Comment, Discussion, Tag
 
 
@@ -79,77 +83,23 @@ def _get_discussion_or_404(slug):
         raise Http404("Тема не найдена") from exc
 
 
-def _parse_tag_ids(source):
-    if hasattr(source, "getlist"):
-        return [value for value in source.getlist("tags") if value]
-    return [str(value) for value in source.get("tags", [])]
-
-
-def _get_discussion_form_data(source=None, instance=None, initial_category=""):
-    source = source or {}
-    selected_tags = _parse_tag_ids(source) if source else []
-    if not selected_tags and instance is not None:
-        selected_tags = [str(tag_id) for tag_id in instance.tags.values_list("id", flat=True)]
-
-    return {
-        "title": source.get("title", getattr(instance, "title", "")),
-        "slug": source.get("slug", getattr(instance, "slug", "")),
-        "author": source.get("author", getattr(instance, "author", "")),
-        "category": source.get(
-            "category",
-            getattr(instance, "category", initial_category or Discussion.Category.GUITAR),
-        ),
-        "status": source.get(
-            "status",
-            getattr(instance, "status", Discussion.Status.PUBLISHED),
-        ),
-        "content": source.get("content", getattr(instance, "content", "")),
-        "tags": selected_tags,
-    }
-
-
-def _validate_discussion_form(data):
+def _get_initial_category(request):
+    category = request.GET.get("category", "").strip()
     valid_categories = {value for value, _ in Discussion.Category.choices}
-    valid_statuses = {value for value, _ in Discussion.get_status_options()}
-    raw_tag_ids = data.get("tags", [])
-
-    cleaned_data = {
-        "title": data.get("title", "").strip(),
-        "slug": slugify(data.get("slug", "").strip(), allow_unicode=True),
-        "author": data.get("author", "").strip(),
-        "category": data.get("category", "").strip(),
-        "status": data.get("status", "").strip(),
-        "content": data.get("content", "").strip(),
-    }
-    errors = {}
-
-    if not cleaned_data["title"]:
-        errors["title"] = "Введите название темы."
-    if not cleaned_data["author"]:
-        errors["author"] = "Введите имя автора."
-    if cleaned_data["category"] not in valid_categories:
-        errors["category"] = "Выберите корректную категорию."
-    if cleaned_data["status"] not in valid_statuses:
-        errors["status"] = "Выберите корректный статус."
-    if not cleaned_data["content"]:
-        errors["content"] = "Введите текст темы."
-
-    try:
-        tag_ids = [int(value) for value in raw_tag_ids]
-    except (TypeError, ValueError):
-        tag_ids = []
-        errors["tags"] = "Выберите корректные теги."
-    else:
-        selected_tags = list(Tag.objects.filter(id__in=tag_ids).order_by("name"))
-        if len(selected_tags) != len(set(tag_ids)):
-            errors["tags"] = "Выберите корректные теги."
-        cleaned_data["selected_tags"] = selected_tags
-
-    return cleaned_data, errors
+    return category if category in valid_categories else ""
 
 
-def _save_discussion_tags(discussion_item, selected_tags):
-    discussion_item.tags.set(selected_tags)
+def handle_uploaded_file(uploaded_file):
+    base_dir = Path(settings.MEDIA_ROOT) / "uploads"
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    source_name = Path(uploaded_file.name)
+    suffix = source_name.suffix
+    random_name = f"{source_name.stem}_{uuid.uuid4().hex}{suffix}"
+
+    with (base_dir / random_name).open("wb+") as destination:
+        for chunk in uploaded_file.chunks():
+            destination.write(chunk)
 
 
 def index(request):
@@ -165,6 +115,15 @@ def index(request):
 
 
 def about(request):
+    if request.method == "POST":
+        upload_form = UploadFileForm(request.POST, request.FILES)
+        if upload_form.is_valid():
+            handle_uploaded_file(upload_form.cleaned_data["file"])
+            messages.success(request, "Файл успешно загружен на сервер.")
+            return redirect("musicforum:about")
+    else:
+        upload_form = UploadFileForm()
+
     annotated_discussions = (
         Discussion.objects.select_related("passport")
         .annotate(
@@ -192,6 +151,7 @@ def about(request):
     context = {
         **_base_context(),
         "title": "О форуме",
+        "upload_form": upload_form,
         "total_discussions": Discussion.objects.count(),
         "published_discussions": Discussion.objects.published().count(),
         "active_discussions": Discussion.objects.exclude(status=Discussion.Status.ARCHIVED).count(),
@@ -241,35 +201,60 @@ def discussion(request, slug):
     return render(request, "musicforum/discussion.html", context)
 
 
-def discussion_create(request):
-    initial_category = request.GET.get("category", "").strip()
+def discussion_create_simple(request):
+    initial = {}
+    initial_category = _get_initial_category(request)
+    if initial_category:
+        initial["category"] = initial_category
 
     if request.method == "POST":
-        form_data = _get_discussion_form_data(request.POST, initial_category=initial_category)
-        cleaned_data, form_errors = _validate_discussion_form(form_data)
-
-        if not form_errors:
+        form = DiscussionSimpleForm(request.POST)
+        if form.is_valid():
             discussion_item = Discussion.objects.create(
-                title=cleaned_data["title"],
-                slug=cleaned_data["slug"],
-                author=cleaned_data["author"],
-                category=cleaned_data["category"],
-                status=cleaned_data["status"],
-                content=cleaned_data["content"],
+                title=form.cleaned_data["title"],
+                slug=form.cleaned_data["slug"],
+                author=form.cleaned_data["author"],
+                category=form.cleaned_data["category"],
+                status=form.cleaned_data["status"],
+                content=form.cleaned_data["content"],
             )
-            _save_discussion_tags(discussion_item, cleaned_data["selected_tags"])
-            messages.success(request, "Тема успешно создана.")
+            discussion_item.tags.set(form.cleaned_data["tags"])
+            messages.success(request, "Тема успешно создана через обычную форму.")
             return redirect(discussion_item)
     else:
-        form_data = _get_discussion_form_data(initial_category=initial_category)
-        form_errors = {}
+        form = DiscussionSimpleForm(initial=initial)
+
+    context = {
+        **_base_context(),
+        "title": "Новая тема (обычная форма)",
+        "form": form,
+        "submit_label": "Создать тему",
+        "form_mode": "simple",
+    }
+    return render(request, "musicforum/discussion_form.html", context)
+
+
+def discussion_create(request):
+    initial = {}
+    initial_category = _get_initial_category(request)
+    if initial_category:
+        initial["category"] = initial_category
+
+    if request.method == "POST":
+        form = DiscussionModelForm(request.POST, request.FILES)
+        if form.is_valid():
+            discussion_item = form.save()
+            messages.success(request, "Тема успешно создана через ModelForm.")
+            return redirect(discussion_item)
+    else:
+        form = DiscussionModelForm(initial=initial)
 
     context = {
         **_base_context(),
         "title": "Новая тема",
-        "form_data": form_data,
-        "form_errors": form_errors,
+        "form": form,
         "submit_label": "Создать тему",
+        "form_mode": "model",
     }
     return render(request, "musicforum/discussion_form.html", context)
 
@@ -278,31 +263,21 @@ def discussion_update(request, slug):
     discussion_item = _get_discussion_or_404(slug)
 
     if request.method == "POST":
-        form_data = _get_discussion_form_data(request.POST, instance=discussion_item)
-        cleaned_data, form_errors = _validate_discussion_form(form_data)
-
-        if not form_errors:
-            discussion_item.title = cleaned_data["title"]
-            discussion_item.slug = cleaned_data["slug"]
-            discussion_item.author = cleaned_data["author"]
-            discussion_item.category = cleaned_data["category"]
-            discussion_item.status = cleaned_data["status"]
-            discussion_item.content = cleaned_data["content"]
-            discussion_item.save()
-            _save_discussion_tags(discussion_item, cleaned_data["selected_tags"])
+        form = DiscussionModelForm(request.POST, request.FILES, instance=discussion_item)
+        if form.is_valid():
+            discussion_item = form.save()
             messages.success(request, "Тема успешно обновлена.")
             return redirect(discussion_item)
     else:
-        form_data = _get_discussion_form_data(instance=discussion_item)
-        form_errors = {}
+        form = DiscussionModelForm(instance=discussion_item)
 
     context = {
         **_base_context(current_category=discussion_item.category),
         "title": "Редактирование темы",
-        "form_data": form_data,
-        "form_errors": form_errors,
+        "form": form,
         "discussion": discussion_item,
         "submit_label": "Сохранить изменения",
+        "form_mode": "model",
     }
     return render(request, "musicforum/discussion_form.html", context)
 

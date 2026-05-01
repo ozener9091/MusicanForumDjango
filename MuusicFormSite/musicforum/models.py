@@ -125,6 +125,13 @@ class Discussion(models.Model):
         default=DiscussionStatus.PUBLISHED,
     )
     content = models.TextField("Содержание")
+    photo = models.ImageField(
+        "Фото",
+        upload_to="photos/%Y/%m/%d/",
+        default=None,
+        blank=True,
+        null=True,
+    )
     created_at = models.DateTimeField("Создано", auto_now_add=True)
     updated_at = models.DateTimeField("Изменено", auto_now=True)
     tags = models.ManyToManyField(Tag, verbose_name="Теги", related_name="discussions", blank=True)

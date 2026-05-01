@@ -11,6 +11,7 @@ urlpatterns = [
     path("about/", views.about, name="about"),
     path("categories/", views.categories, name="categories"),
     path("categories/<slug:category_slug>/", views.category, name="category"),
+    path("discussions/create/simple/", views.discussion_create_simple, name="discussion_create_simple"),
     path("discussions/create/", views.discussion_create, name="discussion_create"),
     path("discussions/<str:slug>/", views.discussion, name="discussion"),
     path("discussions/<str:slug>/edit/", views.discussion_update, name="discussion_update"),

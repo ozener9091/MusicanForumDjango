@@ -1,7 +1,9 @@
 from django.template import Context, Template
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
+from .forms import DiscussionModelForm, DiscussionSimpleForm, UploadFileForm
 from .models import Comment, Discussion, DiscussionPassport, Tag
 
 
@@ -129,3 +131,58 @@ class TemplateTagTests(TestCase):
 
         self.assertIn("#Запись тест", rendered)
         self.assertIn("1", rendered)
+
+
+class DiscussionFormTests(TestCase):
+    def setUp(self):
+        self.tag = Tag.objects.create(name="Тест формы")
+        self.valid_data = {
+            "title": "Корректный заголовок",
+            "slug": "korrektnyj-zagolovok",
+            "author": "Тестер",
+            "category": Discussion.Category.GUITAR,
+            "status": Discussion.Status.PUBLISHED,
+            "content": "Текст тестовой темы",
+            "tags": [self.tag.pk],
+        }
+
+    def test_simple_form_valid_data(self):
+        form = DiscussionSimpleForm(data=self.valid_data)
+        self.assertTrue(form.is_valid())
+
+    def test_simple_form_standard_validator_rejects_short_slug(self):
+        form = DiscussionSimpleForm(data={**self.valid_data, "slug": "abc"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("slug", form.errors)
+
+    def test_simple_form_custom_validator_rejects_forbidden_word(self):
+        form = DiscussionSimpleForm(data={**self.valid_data, "title": "Спам тема"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("title", form.errors)
+
+    def test_model_form_valid_data(self):
+        form = DiscussionModelForm(data=self.valid_data)
+        self.assertTrue(form.is_valid())
+
+    def test_model_form_standard_validator_rejects_short_slug(self):
+        form = DiscussionModelForm(data={**self.valid_data, "slug": "abc"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("slug", form.errors)
+
+    def test_model_form_custom_validator_rejects_long_title(self):
+        too_long_title = "Очень длинный заголовок для проверки пользовательского валидатора"
+        form = DiscussionModelForm(data={**self.valid_data, "title": too_long_title})
+        self.assertFalse(form.is_valid())
+        self.assertIn("title", form.errors)
+
+
+class UploadFileFormTests(TestCase):
+    def test_upload_form_requires_file(self):
+        form = UploadFileForm(data={})
+        self.assertFalse(form.is_valid())
+        self.assertIn("file", form.errors)
+
+    def test_upload_form_accepts_file(self):
+        upload = SimpleUploadedFile("track.txt", b"demo")
+        form = UploadFileForm(data={}, files={"file": upload})
+        self.assertTrue(form.is_valid())

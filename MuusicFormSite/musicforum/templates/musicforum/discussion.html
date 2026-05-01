@@ -32,6 +32,10 @@
             </div>
         {% endif %}
 
+        {% if discussion.photo %}
+            <p><img class="discussion-photo" src="{{ discussion.photo.url }}" alt="{{ discussion.title }}"></p>
+        {% endif %}
+
         <div class="article-body">
             {{ discussion.content|linebreaks }}
         </div>

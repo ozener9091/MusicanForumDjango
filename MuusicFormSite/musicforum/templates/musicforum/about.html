@@ -4,6 +4,25 @@
     <h2>{{ title }}</h2>
     <p class="lead">Страница показывает выборки, группировку, агрегаты, вычисляемые поля и вычисления на стороне СУБД через Django ORM.</p>
 
+    <section class="detail-card">
+        <h3>Загрузка файла на сервер</h3>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% for field in upload_form %}
+                <div class="form-field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <div class="form-error">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            <div class="button-row">
+                <button class="button" type="submit">Отправить</button>
+            </div>
+        </form>
+    </section>
+
     <div class="stats-grid">
         <div class="stat-card">
             <strong>{{ total_discussions }}</strong>

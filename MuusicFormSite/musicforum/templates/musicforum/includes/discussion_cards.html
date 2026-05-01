@@ -2,6 +2,9 @@
     <ul class="discussion-list">
         {% for item in discussions %}
             <li>
+                {% if item.photo %}
+                    <p><img class="discussion-photo-thumb" src="{{ item.photo.url }}" alt="{{ item.title }}"></p>
+                {% endif %}
                 <div class="card-header">
                     <h3>{{ item.title }}</h3>
                     <span class="status-badge status-{{ item.status }}">{{ item.get_status_display }}</span>
