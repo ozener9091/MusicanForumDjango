@@ -1,4 +1,4 @@
-{% extends 'musicforum/base.html' %}
+{% extends "musicforum/base.html" %}
 
 {% block content %}
     <div class="page-heading">
@@ -9,6 +9,36 @@
         <a class="button" href="{% url 'musicforum:discussion_create' %}?category={{ category.slug }}">Новая тема в категории</a>
     </div>
 
-    {% include 'musicforum/includes/discussion_filters.html' %}
-    {% include 'musicforum/includes/discussion_cards.html' with empty_message='В этой категории пока нет подходящих тем.' %}
+    {% include "musicforum/includes/discussion_filters.html" %}
+    {% include "musicforum/includes/discussion_cards.html" with empty_message="В этой категории пока нет подходящих тем." %}
+{% endblock %}
+
+{% block navigation %}
+    {% if page_obj.has_other_pages %}
+        <nav class="list-pages">
+            <ul>
+                {% if page_obj.has_previous %}
+                    <li class="page-num">
+                        <a href="?page={{ page_obj.previous_page_number }}">&lt;</a>
+                    </li>
+                {% endif %}
+
+                {% for p in paginator.page_range %}
+                    {% if page_obj.number == p %}
+                        <li class="page-num page-num-selected">{{ p }}</li>
+                    {% elif p >= page_obj.number|add:-2 and p <= page_obj.number|add:2 %}
+                        <li class="page-num">
+                            <a href="?page={{ p }}">{{ p }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-num">
+                        <a href="?page={{ page_obj.next_page_number }}">&gt;</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
 {% endblock %}

@@ -371,6 +371,35 @@ a:hover {
     font-size: 2rem;
 }
 
+.list-pages {
+    margin: 20px 0 0;
+}
+
+.list-pages ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.page-num a,
+.page-num-selected {
+    display: inline-block;
+    min-width: 24px;
+    padding: 6px 10px;
+    border: 1px solid #b8c3ba;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.page-num-selected {
+    background: #155e63;
+    border-color: #155e63;
+    color: #fff;
+}
+
 @media (max-width: 900px) {
     .layout {
         grid-template-columns: 1fr;

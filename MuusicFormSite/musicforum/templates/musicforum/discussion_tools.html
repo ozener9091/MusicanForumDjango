@@ -1,0 +1,38 @@
+{% extends "musicforum/base.html" %}
+
+{% block content %}
+    <div class="page-heading">
+        <div>
+            <h2>{{ title }}</h2>
+            <p class="lead">Сервисная страница раздела обсуждений на базе TemplateView.</p>
+        </div>
+    </div>
+
+    <section class="detail-card">
+        <h3>Быстрые действия</h3>
+        <div class="button-row">
+            <a class="button" href="{% url 'musicforum:discussion_create' %}">Создать через ModelForm</a>
+            <a class="button button-secondary" href="{% url 'musicforum:discussion_create_form' %}">Создать через FormView</a>
+        </div>
+    </section>
+
+    <section class="detail-card">
+        <h3>Статистика</h3>
+        <p><strong>Всего тем:</strong> {{ total_discussions }}</p>
+        <p><strong>Опубликовано:</strong> {{ published_discussions }}</p>
+
+        <h4>Последние темы</h4>
+        {% if latest_discussions %}
+            <ul class="comment-list">
+                {% for item in latest_discussions %}
+                    <li>
+                        <a href="{% url 'musicforum:discussion' item.slug %}">{{ item.title }}</a>
+                        <span class="detail-meta">({{ item.created_at|date:"d.m.Y H:i" }})</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Тем пока нет.</p>
+        {% endif %}
+    </section>
+{% endblock %}
