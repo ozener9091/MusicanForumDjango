@@ -25,6 +25,7 @@ handler500 = 'pages.views.error_on_server'
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('musicforum.urls')),
+    path('users/', include('users.urls', namespace='users')),
 ]
 
 if settings.DEBUG:

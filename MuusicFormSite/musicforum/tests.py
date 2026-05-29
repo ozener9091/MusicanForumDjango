@@ -1,5 +1,6 @@
 from django.template import Context, Template
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
@@ -97,6 +98,14 @@ class DiscussionViewTests(TestCase):
         self.assertContains(response, "Попробуй медленные упражнения под метроном.")
 
     def test_about_page_contains_grouped_orm_statistics(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            username="about_user",
+            email="about_user@example.com",
+            password="AboutPass123!",
+        )
+        self.client.force_login(user)
+
         response = self.client.get(reverse("musicforum:about"))
 
         self.assertEqual(response.status_code, 200)

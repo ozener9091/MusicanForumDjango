@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 {% load musicforum_tags %}
 <!DOCTYPE html>
 <html lang="ru">
@@ -19,6 +19,11 @@
                 {% for item in menu %}
                     <li><a href="{% url item.url_name %}">{{ item.title }}</a></li>
                 {% endfor %}
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'users:profile' %}">{{ user.username }}</a> | <a href="{% url 'users:logout' %}">Выйти</a></li>
+                {% else %}
+                    <li><a href="{% url 'users:login' %}">Войти</a> | <a href="{% url 'users:register' %}">Регистрация</a></li>
+                {% endif %}
             </ul>
         </nav>
     </header>
@@ -30,7 +35,9 @@
             <p class="sidebar-summary">Опубликовано тем: {% published_discussions_total %}</p>
             <h3>Популярные теги</h3>
             {% show_popular_tags %}
-            <a class="button button-secondary sidebar-button" href="{% url 'musicforum:discussion_create' %}">Создать тему</a>
+            {% if perms.musicforum.add_discussion %}
+                <a class="button button-secondary sidebar-button" href="{% url 'musicforum:discussion_create' %}">Создать тему</a>
+            {% endif %}
         </aside>
 
         <main class="content">

@@ -1,0 +1,24 @@
+﻿{% extends 'musicforum/base.html' %}
+
+{% block content %}
+    <h2>{{ title }}</h2>
+
+    <form class="editor-form" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+
+        <div class="form-error">{{ form.non_field_errors }}</div>
+
+        {% for f in form %}
+            <div class="form-field">
+                <label class="field-label" for="{{ f.id_for_label }}">{{ f.label }}:</label>
+                {{ f }}
+                <div class="form-error">{{ f.errors }}</div>
+            </div>
+        {% endfor %}
+
+        <div class="button-row">
+            <button class="button" type="submit">Регистрация</button>
+        </div>
+    </form>
+{% endblock %}

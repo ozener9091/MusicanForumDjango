@@ -1,0 +1,55 @@
+﻿{% extends 'musicforum/base.html' %}
+
+{% block content %}
+    <h2>{{ title }}</h2>
+
+    <form class="editor-form" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {% if user.photo %}
+            <p><img class="discussion-photo-thumb" src="{{ user.photo.url }}" alt="Фото профиля"></p>
+        {% else %}
+            <p><img class="discussion-photo-thumb" src="{{ default_image }}" alt="Фото по умолчанию"></p>
+        {% endif %}
+
+        <div class="form-error">{{ form.non_field_errors }}</div>
+
+        {% for f in form %}
+            <div class="form-field">
+                <label class="field-label" for="{{ f.id_for_label }}">{{ f.label }}:</label>
+                {{ f }}
+                <div class="form-error">{{ f.errors }}</div>
+            </div>
+        {% endfor %}
+
+        <div class="button-row">
+            <button class="button" type="submit">Сохранить</button>
+        </div>
+    </form>
+
+    <hr>
+    <p><a href="{% url 'users:password_change' %}">Сменить пароль</a></p>
+
+    {% if perms.users.social_auth %}
+        <hr>
+        <h3>Social Auth</h3>
+        <p>
+            Текущий статус:
+            {% if user.social_auth_verified %}
+                <strong>подтвержден</strong>
+            {% else %}
+                <strong>не подтвержден</strong>
+            {% endif %}
+        </p>
+        <form method="post" action="{% url 'users:social_auth_toggle' %}">
+            {% csrf_token %}
+            <button class="button button-secondary" type="submit">
+                {% if user.social_auth_verified %}
+                    Отключить статус social auth
+                {% else %}
+                    Подтвердить статус social auth
+                {% endif %}
+            </button>
+        </form>
+    {% endif %}
+{% endblock %}

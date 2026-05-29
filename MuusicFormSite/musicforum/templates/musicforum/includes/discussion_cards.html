@@ -1,4 +1,4 @@
-{% if discussions %}
+﻿{% if discussions %}
     <ul class="discussion-list">
         {% for item in discussions %}
             <li>
@@ -23,8 +23,12 @@
                 {% endif %}
                 <div class="button-row">
                     <a class="button" href="{% url 'musicforum:discussion' item.slug %}">Открыть по слагу</a>
-                    <a class="button button-secondary" href="{% url 'musicforum:discussion_update' item.slug %}">Изменить</a>
-                    <a class="button button-danger" href="{% url 'musicforum:discussion_delete' item.slug %}">Удалить</a>
+                    {% if perms.musicforum.change_discussion %}
+                        <a class="button button-secondary" href="{% url 'musicforum:discussion_update' item.slug %}">Изменить</a>
+                    {% endif %}
+                    {% if perms.musicforum.delete_discussion %}
+                        <a class="button button-danger" href="{% url 'musicforum:discussion_delete' item.slug %}">Удалить</a>
+                    {% endif %}
                 </div>
             </li>
         {% endfor %}

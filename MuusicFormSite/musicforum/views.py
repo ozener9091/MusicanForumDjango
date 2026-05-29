@@ -3,6 +3,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db.models import Avg, Count, F, IntegerField, Prefetch, Value
 from django.db.models.functions import Coalesce
 from django.http import Http404
@@ -101,7 +102,7 @@ class DiscussionHomeView(DataMixin, ListView):
         )
 
 
-class AboutView(DataMixin, View):
+class AboutView(LoginRequiredMixin, DataMixin, View):
     template_name = "musicforum/about.html"
     title_page = "О форуме"
 
@@ -239,11 +240,13 @@ class DiscussionToolsView(DataMixin, TemplateView):
         )
 
 
-class DiscussionCreateFormView(DataMixin, FormView):
+class DiscussionCreateFormView(PermissionRequiredMixin, DataMixin, FormView):
     form_class = DiscussionSimpleForm
     template_name = "musicforum/discussion_form.html"
     title_page = "Новая тема (обычная форма)"
     success_url = reverse_lazy("musicforum:index")
+    permission_required = "musicforum.add_discussion"
+    raise_exception = True
 
     def get_initial(self):
         initial = super().get_initial()
@@ -278,11 +281,13 @@ class DiscussionCreateSimpleView(DiscussionCreateFormView):
     pass
 
 
-class DiscussionCreateView(DataMixin, CreateView):
+class DiscussionCreateView(PermissionRequiredMixin, DataMixin, CreateView):
     model = Discussion
     form_class = DiscussionModelForm
     template_name = "musicforum/discussion_form.html"
     title_page = "Новая тема"
+    permission_required = "musicforum.add_discussion"
+    raise_exception = True
 
     def get_initial(self):
         initial = super().get_initial()
@@ -305,13 +310,15 @@ class DiscussionCreateView(DataMixin, CreateView):
         )
 
 
-class DiscussionUpdateView(DataMixin, UpdateView):
+class DiscussionUpdateView(PermissionRequiredMixin, DataMixin, UpdateView):
     model = Discussion
     form_class = DiscussionModelForm
     template_name = "musicforum/discussion_form.html"
     title_page = "Редактирование темы"
     slug_field = "slug"
     slug_url_kwarg = "slug"
+    permission_required = "musicforum.change_discussion"
+    raise_exception = True
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -329,7 +336,7 @@ class DiscussionUpdateView(DataMixin, UpdateView):
         )
 
 
-class DiscussionDeleteView(DataMixin, DeleteView):
+class DiscussionDeleteView(PermissionRequiredMixin, DataMixin, DeleteView):
     model = Discussion
     template_name = "musicforum/discussion_confirm_delete.html"
     context_object_name = "discussion"
@@ -337,6 +344,8 @@ class DiscussionDeleteView(DataMixin, DeleteView):
     slug_field = "slug"
     slug_url_kwarg = "slug"
     success_url = reverse_lazy("musicforum:index")
+    permission_required = "musicforum.delete_discussion"
+    raise_exception = True
 
     def form_valid(self, form):
         messages.success(self.request, "Тема удалена.")

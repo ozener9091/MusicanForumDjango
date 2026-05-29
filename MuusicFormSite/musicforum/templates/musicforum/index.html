@@ -1,4 +1,4 @@
-{% extends "musicforum/base.html" %}
+﻿{% extends "musicforum/base.html" %}
 
 {% block content %}
     {% include "musicforum/includes/forum_nav.html" %}
@@ -8,7 +8,9 @@
             <h2>{{ title }}</h2>
             <p class="lead">Страница получает данные из базы SQLite через ORM Django.</p>
         </div>
-        <a class="button" href="{% url 'musicforum:discussion_create' %}">Добавить тему</a>
+        {% if perms.musicforum.add_discussion %}
+            <a class="button" href="{% url 'musicforum:discussion_create' %}">Добавить тему</a>
+        {% endif %}
     </div>
 
     {% include "musicforum/includes/discussion_filters.html" %}
