@@ -21,5 +21,5 @@ class User(AbstractUser):
 
     class Meta:
         permissions = [
-            ('social_auth', 'Can manage social auth status'),
+            ('social_auth', 'Можно авторизоваться через социальные сети'),
         ]
