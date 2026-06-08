@@ -6,7 +6,9 @@
             <h2>{{ category.title }}</h2>
             <p class="lead">{{ category.description }}</p>
         </div>
-        <a class="button" href="{% url 'musicforum:discussion_create' %}?category={{ category.slug }}">Новая тема в категории</a>
+        {% if user.is_authenticated %}
+            <a class="button" href="{% url 'musicforum:discussion_create' %}?category={{ category.slug }}">Новая тема в категории</a>
+        {% endif %}
     </div>
 
     {% include "musicforum/includes/discussion_filters.html" %}

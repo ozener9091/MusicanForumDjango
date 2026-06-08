@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxLengthValidator, MinLengthValidator
 from django.utils.text import slugify
 
-from .models import Discussion, Tag
+from .models import Comment, Discussion, Tag
 
 
 class ForbiddenWordsValidator:
@@ -20,30 +20,7 @@ class ForbiddenWordsValidator:
                 )
 
 
-class DiscussionSimpleForm(forms.Form):
-    title = forms.CharField(
-        label="Название темы",
-        min_length=5,
-        max_length=255,
-        validators=[ForbiddenWordsValidator()],
-    )
-    slug = forms.SlugField(
-        label="Слаг",
-        required=False,
-        validators=[MinLengthValidator(5), MaxLengthValidator(100)],
-        help_text="Если оставить поле пустым, слаг создастся автоматически.",
-    )
-    author = forms.CharField(label="Автор", max_length=100)
-    category = forms.ChoiceField(label="Категория", choices=Discussion.Category.choices)
-    status = forms.ChoiceField(label="Статус", choices=Discussion.get_status_options())
-    content = forms.CharField(label="Текст сообщения", widget=forms.Textarea(attrs={"rows": 8}))
-    tags = forms.ModelMultipleChoiceField(
-        label="Теги",
-        queryset=Tag.objects.order_by("name"),
-        required=False,
-        widget=forms.CheckboxSelectMultiple,
-    )
-
+class DiscussionValidationMixin:
     def clean_title(self):
         title = self.cleaned_data["title"].strip()
         if len(title) > 50:
@@ -52,10 +29,18 @@ class DiscussionSimpleForm(forms.Form):
 
     def clean_slug(self):
         slug = slugify(self.cleaned_data.get("slug", ""), allow_unicode=True)
+        if slug:
+            slug_qs = Discussion.objects.filter(slug=slug)
+            instance = getattr(self, "instance", None)
+            if instance is not None and getattr(instance, "pk", None):
+                slug_qs = slug_qs.exclude(pk=instance.pk)
+
+            if slug_qs.exists():
+                raise ValidationError("Тема с таким слагом уже существует.")
         return slug
 
 
-class DiscussionModelForm(forms.ModelForm):
+class DiscussionSimpleForm(DiscussionValidationMixin, forms.Form):
     title = forms.CharField(
         label="Название темы",
         min_length=5,
@@ -65,6 +50,33 @@ class DiscussionModelForm(forms.ModelForm):
     slug = forms.SlugField(
         label="Слаг",
         required=False,
+        allow_unicode=True,
+        validators=[MinLengthValidator(5), MaxLengthValidator(100)],
+        help_text="Если оставить поле пустым, слаг создастся автоматически.",
+    )
+    category = forms.ChoiceField(label="Категория", choices=Discussion.Category.choices)
+    status = forms.ChoiceField(label="Статус", choices=Discussion.get_status_options())
+    content = forms.CharField(label="Текст сообщения", widget=forms.Textarea(attrs={"rows": 8}))
+    photo = forms.ImageField(label="Фото", required=False)
+    tags = forms.ModelMultipleChoiceField(
+        label="Теги",
+        queryset=Tag.objects.order_by("name"),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+
+class DiscussionModelForm(DiscussionValidationMixin, forms.ModelForm):
+    title = forms.CharField(
+        label="Название темы",
+        min_length=5,
+        max_length=255,
+        validators=[ForbiddenWordsValidator()],
+    )
+    slug = forms.SlugField(
+        label="Слаг",
+        required=False,
+        allow_unicode=True,
         validators=[MinLengthValidator(5), MaxLengthValidator(100)],
         help_text="Если оставить поле пустым, слаг создастся автоматически.",
     )
@@ -77,20 +89,28 @@ class DiscussionModelForm(forms.ModelForm):
 
     class Meta:
         model = Discussion
-        fields = ["title", "slug", "author", "category", "status", "content", "photo", "tags"]
+        fields = ["title", "slug", "category", "status", "content", "photo", "tags"]
         widgets = {
             "content": forms.Textarea(attrs={"rows": 8}),
         }
 
-    def clean_title(self):
-        title = self.cleaned_data["title"].strip()
-        if len(title) > 50:
-            raise ValidationError("Длина заголовка превышает 50 символов.")
-        return title
 
-    def clean_slug(self):
-        slug = slugify(self.cleaned_data.get("slug", ""), allow_unicode=True)
-        return slug
+class CommentForm(forms.ModelForm):
+    class Meta:
+        model = Comment
+        fields = ["text"]
+        widgets = {
+            "text": forms.Textarea(attrs={"rows": 4, "placeholder": "Напишите комментарий..."}),
+        }
+        labels = {
+            "text": "Комментарий",
+        }
+
+    def clean_text(self):
+        text = self.cleaned_data["text"].strip()
+        if len(text) < 5:
+            raise ValidationError("Комментарий должен быть не короче 5 символов.")
+        return text
 
 
 class UploadFileForm(forms.Form):

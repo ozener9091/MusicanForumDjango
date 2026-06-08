@@ -14,12 +14,14 @@
             <a class="button" href="{% url 'musicforum:discussion_create' %}">Создать через ModelForm</a>
             <a class="button button-secondary" href="{% url 'musicforum:discussion_create_form' %}">Создать через FormView</a>
         </div>
+        <p class="lead">Темы и комментарии создаются обычными пользователями после входа в систему, а редактирование и удаление доступны только автору или администратору.</p>
     </section>
 
     <section class="detail-card">
         <h3>Статистика</h3>
         <p><strong>Всего тем:</strong> {{ total_discussions }}</p>
         <p><strong>Опубликовано:</strong> {{ published_discussions }}</p>
+        <p><strong>Текстовые действия:</strong> комментарии, лайки и дизлайки учитываются через отдельные модели и аннотации ORM.</p>
 
         <h4>Последние темы</h4>
         {% if latest_discussions %}
@@ -27,7 +29,9 @@
                 {% for item in latest_discussions %}
                     <li>
                         <a href="{% url 'musicforum:discussion' item.slug %}">{{ item.title }}</a>
-                        <span class="detail-meta">({{ item.created_at|date:"d.m.Y H:i" }})</span>
+                        <span class="detail-meta">
+                            ({{ item.created_at|date:"d.m.Y H:i" }}) - {{ item.comment_count }} комментариев, {{ item.like_count }} лайков
+                        </span>
                     </li>
                 {% endfor %}
             </ul>

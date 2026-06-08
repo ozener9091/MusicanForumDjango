@@ -1,7 +1,7 @@
-﻿{% extends 'musicforum/base.html' %}
+{% extends 'musicforum/base.html' %}
 
 {% block content %}
-    <article class="detail-card">
+    <article class="detail-card" id="discussion-top">
         <div class="detail-header">
             <div>
                 <p class="detail-meta">
@@ -9,16 +9,18 @@
                     <a href="{% url 'musicforum:category' category.slug %}">{{ category.title }}</a>
                 </p>
                 <h2>{{ discussion.title }}</h2>
+                <p class="detail-meta">Автор: {{ discussion.display_author }}</p>
             </div>
             <span class="status-badge status-{{ discussion.status }}">{{ discussion.get_status_display }}</span>
         </div>
 
         <div class="detail-meta-grid">
-            <p><strong>Автор:</strong> {{ discussion.author }}</p>
             <p><strong>Создано:</strong> {{ discussion.created_at|date:"d.m.Y H:i" }}</p>
             <p><strong>Обновлено:</strong> {{ discussion.updated_at|date:"d.m.Y H:i" }}</p>
             <p><strong>Слаг:</strong> {{ discussion.slug }}</p>
             <p><strong>Комментарии:</strong> {{ discussion.comment_count }}</p>
+            <p><strong>Лайки:</strong> {{ discussion.like_count }}</p>
+            <p><strong>Дизлайки:</strong> {{ discussion.dislike_count }}</p>
             <p><strong>Теги:</strong> {{ discussion.tag_count }}</p>
             <p><strong>Просмотры:</strong> {{ discussion.passport.views_count }}</p>
             <p><strong>Закладки:</strong> {{ discussion.passport.bookmarks_count }}</p>
@@ -40,13 +42,71 @@
             {{ discussion.content|linebreaks }}
         </div>
 
-        <section class="comments-section">
-            <h3>Комментарии</h3>
+        {% if user.is_authenticated %}
+            <section class="reaction-panel">
+                <h3>Быстрые реакции</h3>
+                <div class="button-row">
+                    <form method="post" action="{% url 'musicforum:discussion_reaction' discussion.slug 'like' %}">
+                        {% csrf_token %}
+                        <button
+                            class="button reaction-button{% if user_reaction and user_reaction.value == 'like' %} reaction-button-active{% endif %}"
+                            type="submit"
+                        >
+                            Лайк {{ discussion.like_count }}
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'musicforum:discussion_reaction' discussion.slug 'dislike' %}">
+                        {% csrf_token %}
+                        <button
+                            class="button button-secondary reaction-button{% if user_reaction and user_reaction.value == 'dislike' %} reaction-button-active{% endif %}"
+                            type="submit"
+                        >
+                            Дизлайк {{ discussion.dislike_count }}
+                        </button>
+                    </form>
+                </div>
+            </section>
+        {% endif %}
+
+        <section class="comments-section" id="comments">
+            <div class="page-heading">
+                <div>
+                    <h3>Комментарии</h3>
+                    <p class="lead">Пользователь может добавить комментарий прямо с детальной страницы темы.</p>
+                </div>
+            </div>
+
+            {% if user.is_authenticated %}
+                <form class="editor-form comment-form" method="post" action="{% url 'musicforum:discussion_comment' discussion.slug %}">
+                    {% csrf_token %}
+                    {% for field in comment_form %}
+                        <div class="form-field">
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <small>{{ field.help_text }}</small>
+                            {% endif %}
+                            {% if field.errors %}
+                                <div class="form-error">{{ field.errors }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                    <div class="button-row">
+                        <button class="button" type="submit">Отправить комментарий</button>
+                    </div>
+                </form>
+            {% else %}
+                <p>Чтобы оставить комментарий, войдите в аккаунт.</p>
+            {% endif %}
+
             {% if discussion.comment_count %}
                 <ul class="comment-list">
                     {% for comment in discussion.comments.all %}
                         <li>
-                            <p><strong>{{ comment.author }}</strong> <span class="detail-meta">{{ comment.created_at|date:"d.m.Y H:i" }}</span></p>
+                            <p>
+                                <strong>{{ comment.display_author }}</strong>
+                                <span class="detail-meta">{{ comment.created_at|date:"d.m.Y H:i" }}</span>
+                            </p>
                             <p>{{ comment.text }}</p>
                         </li>
                     {% endfor %}
@@ -57,10 +117,8 @@
         </section>
 
         <div class="button-row">
-            {% if perms.musicforum.change_discussion %}
+            {% if can_edit_discussion %}
                 <a class="button" href="{% url 'musicforum:discussion_update' discussion.slug %}">Редактировать</a>
-            {% endif %}
-            {% if perms.musicforum.delete_discussion %}
                 <a class="button button-danger" href="{% url 'musicforum:discussion_delete' discussion.slug %}">Удалить</a>
             {% endif %}
         </div>

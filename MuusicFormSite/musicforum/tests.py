@@ -1,27 +1,37 @@
-from django.template import Context, Template
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.template import Context, Template
 from django.test import TestCase
 from django.urls import reverse
 
-from .forms import DiscussionModelForm, DiscussionSimpleForm, UploadFileForm
-from .models import Comment, Discussion, DiscussionPassport, Tag
+from .forms import CommentForm, DiscussionModelForm, DiscussionSimpleForm, UploadFileForm
+from .models import Comment, Discussion, DiscussionPassport, DiscussionReaction, ReactionValue, Tag
 
 
 class DiscussionModelTests(TestCase):
     def setUp(self):
+        user_model = get_user_model()
+        self.owner = user_model.objects.create_user(
+            username="owner",
+            email="owner@example.com",
+            password="OwnerPass123!",
+            first_name="Иван",
+            last_name="Петров",
+        )
         self.discussion = Discussion.objects.create(
             title="Тестовая тема",
-            author="Иван",
+            author="Иван Петров",
+            created_by=self.owner,
             category=Discussion.Category.GUITAR,
             status=Discussion.Status.PUBLISHED,
             content="Содержимое тестовой темы",
         )
 
     def test_discussion_creates_passport_automatically(self):
-        self.assertTrue(
-            DiscussionPassport.objects.filter(discussion=self.discussion).exists()
-        )
+        self.assertTrue(DiscussionPassport.objects.filter(discussion=self.discussion).exists())
+
+    def test_display_author_uses_related_user(self):
+        self.assertEqual(self.discussion.display_author, "Иван Петров")
 
     def test_comment_is_deleted_with_discussion(self):
         comment = Comment.objects.create(
@@ -54,10 +64,26 @@ class DiscussionModelTests(TestCase):
 
 class DiscussionViewTests(TestCase):
     def setUp(self):
+        user_model = get_user_model()
+        self.owner = user_model.objects.create_user(
+            username="owner",
+            email="owner@example.com",
+            password="OwnerPass123!",
+            first_name="Иван",
+            last_name="Петров",
+        )
+        self.other = user_model.objects.create_user(
+            username="other",
+            email="other@example.com",
+            password="OtherPass123!",
+            first_name="Анна",
+            last_name="Соколова",
+        )
         self.tag = Tag.objects.create(name="Практика тест")
         self.discussion = Discussion.objects.create(
             title="Гитарная практика",
-            author="Олег",
+            author="Иван Петров",
+            created_by=self.owner,
             category=Discussion.Category.GUITAR,
             status=Discussion.Status.PUBLISHED,
             content="Ищу упражнения для ежедневной практики",
@@ -70,47 +96,44 @@ class DiscussionViewTests(TestCase):
         Comment.objects.create(
             discussion=self.discussion,
             author="Сергей",
+            created_by=self.other,
             text="Попробуй медленные упражнения под метроном.",
         )
         self.other_discussion = Discussion.objects.create(
             title="Черновик по вокалу",
-            author="Анна",
+            author="Анна Соколова",
+            created_by=self.other,
             category=Discussion.Category.VOCALS,
             status=Discussion.Status.DRAFT,
             content="Черновой текст",
         )
 
-    def test_index_contains_tags_and_comment_counts(self):
+    def test_index_contains_tags_comment_and_reaction_counts(self):
         response = self.client.get(reverse("musicforum:index"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "#Практика тест")
         self.assertContains(response, "Комментарии: 1")
+        self.assertContains(response, "Лайки: 0")
 
-    def test_discussion_page_contains_comments_and_passport_data(self):
-        response = self.client.get(
-            reverse("musicforum:discussion", kwargs={"slug": self.discussion.slug})
-        )
+    def test_discussion_page_contains_comments_and_comment_form(self):
+        response = self.client.get(reverse("musicforum:discussion", kwargs={"slug": self.discussion.slug}))
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["discussion"].passport.views_count, 40)
         self.assertContains(response, "Просмотры:")
         self.assertContains(response, "Попробуй медленные упражнения под метроном.")
+        self.assertContains(response, "Чтобы оставить комментарий, войдите в аккаунт.")
 
     def test_about_page_contains_grouped_orm_statistics(self):
-        user_model = get_user_model()
-        user = user_model.objects.create_user(
-            username="about_user",
-            email="about_user@example.com",
-            password="AboutPass123!",
-        )
-        self.client.force_login(user)
+        self.client.force_login(self.other)
 
         response = self.client.get(reverse("musicforum:about"))
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("orm_status_counts", response.context)
         self.assertIn("orm_tag_counts", response.context)
+        self.assertIn("orm_reaction_counts", response.context)
         self.assertContains(response, "Практика тест")
 
     def test_search_with_q_finds_discussion_by_tag_and_comment(self):
@@ -120,6 +143,103 @@ class DiscussionViewTests(TestCase):
         self.assertContains(by_tag, self.discussion.title)
         self.assertNotContains(by_tag, self.other_discussion.title)
         self.assertContains(by_comment, self.discussion.title)
+
+    def test_authenticated_user_can_create_comment(self):
+        self.client.force_login(self.other)
+
+        response = self.client.post(
+            reverse("musicforum:discussion_comment", kwargs={"slug": self.discussion.slug}),
+            {"text": "Отличный совет, спасибо!"},
+        )
+
+        self.assertRedirects(response, f"{self.discussion.get_absolute_url()}#comments")
+        self.assertTrue(Comment.objects.filter(discussion=self.discussion, created_by=self.other).exists())
+
+    def test_reaction_toggle_create_update_and_delete(self):
+        self.client.force_login(self.other)
+        reaction_url = reverse(
+            "musicforum:discussion_reaction",
+            kwargs={"slug": self.discussion.slug, "value": ReactionValue.LIKE},
+        )
+
+        response = self.client.post(reaction_url)
+        self.assertRedirects(response, self.discussion.get_absolute_url())
+        self.assertTrue(
+            DiscussionReaction.objects.filter(
+                discussion=self.discussion,
+                user=self.other,
+                value=ReactionValue.LIKE,
+            ).exists()
+        )
+
+        response = self.client.post(
+            reverse(
+                "musicforum:discussion_reaction",
+                kwargs={"slug": self.discussion.slug, "value": ReactionValue.DISLIKE},
+            )
+        )
+        self.assertRedirects(response, self.discussion.get_absolute_url())
+        self.assertTrue(
+            DiscussionReaction.objects.filter(
+                discussion=self.discussion,
+                user=self.other,
+                value=ReactionValue.DISLIKE,
+            ).exists()
+        )
+
+        response = self.client.post(
+            reverse(
+                "musicforum:discussion_reaction",
+                kwargs={"slug": self.discussion.slug, "value": ReactionValue.DISLIKE},
+            )
+        )
+        self.assertRedirects(response, self.discussion.get_absolute_url())
+        self.assertFalse(
+            DiscussionReaction.objects.filter(
+                discussion=self.discussion,
+                user=self.other,
+            ).exists()
+        )
+
+    def test_only_creator_can_edit_discussion(self):
+        self.client.force_login(self.other)
+
+        response = self.client.post(
+            reverse("musicforum:discussion_update", kwargs={"slug": self.discussion.slug}),
+            {
+                "title": "Изменённая тема",
+                "slug": self.discussion.slug,
+                "category": self.discussion.category,
+                "status": self.discussion.status,
+                "content": self.discussion.content,
+                "photo": "",
+                "tags": [],
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.discussion.refresh_from_db()
+        self.assertEqual(self.discussion.title, "Гитарная практика")
+
+    def test_creator_can_edit_discussion(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            reverse("musicforum:discussion_update", kwargs={"slug": self.discussion.slug}),
+            {
+                "title": "Изменённая тема",
+                "slug": self.discussion.slug,
+                "category": self.discussion.category,
+                "status": self.discussion.status,
+                "content": "Обновлённое содержание",
+                "tags": [self.tag.pk],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.discussion.refresh_from_db()
+        self.assertEqual(self.discussion.title, "Изменённая тема")
+        self.assertEqual(self.discussion.created_by, self.owner)
 
 
 class TemplateTagTests(TestCase):
@@ -148,7 +268,6 @@ class DiscussionFormTests(TestCase):
         self.valid_data = {
             "title": "Корректный заголовок",
             "slug": "korrektnyj-zagolovok",
-            "author": "Тестер",
             "category": Discussion.Category.GUITAR,
             "status": Discussion.Status.PUBLISHED,
             "content": "Текст тестовой темы",
@@ -183,6 +302,11 @@ class DiscussionFormTests(TestCase):
         form = DiscussionModelForm(data={**self.valid_data, "title": too_long_title})
         self.assertFalse(form.is_valid())
         self.assertIn("title", form.errors)
+
+    def test_comment_form_requires_min_length(self):
+        form = CommentForm(data={"text": "1234"})
+        self.assertFalse(form.is_valid())
+        self.assertIn("text", form.errors)
 
 
 class UploadFileFormTests(TestCase):

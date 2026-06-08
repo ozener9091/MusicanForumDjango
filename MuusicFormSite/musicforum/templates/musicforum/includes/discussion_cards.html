@@ -11,9 +11,11 @@
                 </div>
                 <p>{{ item.content|truncatechars:140 }}</p>
                 <p class="card-meta">
-                    Автор: {{ item.author }} | Категория: {{ item.get_category_display }} | Дата: {{ item.created_at|date:"d.m.Y H:i" }}
+                    Автор: {{ item.display_author }} | Категория: {{ item.get_category_display }} | Дата: {{ item.created_at|date:"d.m.Y H:i" }}
                 </p>
-                <p class="card-meta">Комментарии: {{ item.comment_count }} | Теги: {{ item.tag_count }}</p>
+                <p class="card-meta">
+                    Комментарии: {{ item.comment_count }} | Лайки: {{ item.like_count }} | Дизлайки: {{ item.dislike_count }} | Теги: {{ item.tag_count }}
+                </p>
                 {% if item.tag_count %}
                     <div class="tag-list">
                         {% for tag in item.tags.all %}
@@ -23,12 +25,6 @@
                 {% endif %}
                 <div class="button-row">
                     <a class="button" href="{% url 'musicforum:discussion' item.slug %}">Открыть по слагу</a>
-                    {% if perms.musicforum.change_discussion %}
-                        <a class="button button-secondary" href="{% url 'musicforum:discussion_update' item.slug %}">Изменить</a>
-                    {% endif %}
-                    {% if perms.musicforum.delete_discussion %}
-                        <a class="button button-danger" href="{% url 'musicforum:discussion_delete' item.slug %}">Удалить</a>
-                    {% endif %}
                 </div>
             </li>
         {% endfor %}

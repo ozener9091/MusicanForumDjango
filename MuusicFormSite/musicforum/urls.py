@@ -16,6 +16,12 @@ urlpatterns = [
     path("discussions/create/simple/", views.DiscussionCreateSimpleView.as_view(), name="discussion_create_simple"),
     path("discussions/create/", views.DiscussionCreateView.as_view(), name="discussion_create"),
     path("discussions/<str:slug>/", views.DiscussionDetailView.as_view(), name="discussion"),
+    path("discussions/<str:slug>/comment/", views.DiscussionCommentCreateView.as_view(), name="discussion_comment"),
+    path(
+        "discussions/<str:slug>/reaction/<str:value>/",
+        views.DiscussionReactionToggleView.as_view(),
+        name="discussion_reaction",
+    ),
     path("discussions/<str:slug>/edit/", views.DiscussionUpdateView.as_view(), name="discussion_update"),
     path("discussions/<str:slug>/delete/", views.DiscussionDeleteView.as_view(), name="discussion_delete"),
 ]

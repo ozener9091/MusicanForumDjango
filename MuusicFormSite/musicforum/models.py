@@ -1,6 +1,15 @@
+from django.conf import settings
 from django.db import models
 from django.db.models import Count, Q
 from django.utils.text import slugify
+
+
+def _user_display_name(user):
+    if not user:
+        return ""
+
+    full_name = (user.get_full_name() or "").strip()
+    return full_name or user.get_username()
 
 
 class DiscussionStatus(models.TextChoices):
@@ -16,6 +25,11 @@ class MusicCategory(models.TextChoices):
     DRUMS = "drums", "Ударные"
 
 
+class ReactionValue(models.TextChoices):
+    LIKE = "like", "Лайк"
+    DISLIKE = "dislike", "Дизлайк"
+
+
 class DiscussionQuerySet(models.QuerySet):
     ORDERING_MAP = {
         "-created_at": ("-created_at", "-id"),
@@ -23,17 +37,24 @@ class DiscussionQuerySet(models.QuerySet):
         "title": ("title", "id"),
         "-title": ("-title", "-id"),
         "author": ("author", "title"),
+        "-comment_count": ("-comment_count", "-created_at"),
+        "-like_count": ("-like_count", "-created_at"),
     }
 
     def search(self, query):
         if not query:
             return self
+
         return self.filter(
             Q(title__icontains=query)
             | Q(content__icontains=query)
             | Q(author__icontains=query)
+            | Q(created_by__username__icontains=query)
+            | Q(created_by__first_name__icontains=query)
+            | Q(created_by__last_name__icontains=query)
             | Q(tags__name__icontains=query)
             | Q(comments__text__icontains=query)
+            | Q(comments__author__icontains=query)
         ).distinct()
 
     def for_category(self, category_slug):
@@ -107,11 +128,21 @@ class Discussion(models.Model):
         ("title", "Название: А-Я"),
         ("-title", "Название: Я-А"),
         ("author", "Автор: А-Я"),
+        ("-comment_count", "По количеству комментариев"),
+        ("-like_count", "По количеству лайков"),
     ]
 
     title = models.CharField("Название темы", max_length=255)
     slug = models.SlugField("Слаг", max_length=255, unique=True, blank=True, allow_unicode=True)
     author = models.CharField("Автор", max_length=100)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Создатель",
+        related_name="created_discussions",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
     category = models.CharField(
         "Категория",
         max_length=20,
@@ -146,15 +177,25 @@ class Discussion(models.Model):
     def __str__(self):
         return self.title
 
+    @property
+    def display_author(self):
+        if self.created_by_id:
+            return _user_display_name(self.created_by)
+        return self.author
+
     def get_absolute_url(self):
         from django.urls import reverse
 
         return reverse("musicforum:discussion", kwargs={"slug": self.slug})
 
     def save(self, *args, **kwargs):
+        if not self.author and self.created_by_id:
+            self.author = _user_display_name(self.created_by)
+
         self.slug = self._build_unique_slug()
         creating = self.pk is None
         super().save(*args, **kwargs)
+
         if creating:
             DiscussionPassport.objects.get_or_create(discussion=self)
 
@@ -224,6 +265,14 @@ class Comment(models.Model):
         on_delete=models.CASCADE,
     )
     author = models.CharField("Автор комментария", max_length=100)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Создатель",
+        related_name="created_comments",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+    )
     text = models.TextField("Текст комментария")
     created_at = models.DateTimeField("Создано", auto_now_add=True)
 
@@ -234,3 +283,44 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"{self.author}: {self.text[:40]}"
+
+    @property
+    def display_author(self):
+        if self.created_by_id:
+            return _user_display_name(self.created_by)
+        return self.author
+
+    def save(self, *args, **kwargs):
+        if not self.author and self.created_by_id:
+            self.author = _user_display_name(self.created_by)
+        super().save(*args, **kwargs)
+
+
+class DiscussionReaction(models.Model):
+    discussion = models.ForeignKey(
+        Discussion,
+        verbose_name="Обсуждение",
+        related_name="reactions",
+        on_delete=models.CASCADE,
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Пользователь",
+        related_name="discussion_reactions",
+        on_delete=models.CASCADE,
+    )
+    value = models.CharField("Реакция", max_length=10, choices=ReactionValue.choices)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "реакция на обсуждение"
+        verbose_name_plural = "реакции на обсуждения"
+        constraints = [
+            models.UniqueConstraint(
+                fields=("discussion", "user"),
+                name="unique_discussion_reaction_per_user",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user}: {self.get_value_display()} -> {self.discussion}"

@@ -2,7 +2,10 @@
 
 {% block content %}
     <h2>{{ title }}</h2>
-    <p class="lead">Страница показывает выборки, группировку, агрегаты, вычисляемые поля и вычисления на стороне СУБД через Django ORM.</p>
+    <p class="lead">
+        Страница показывает выборки, группировку, агрегаты, вычисляемые поля и вычисления на стороне СУБД через Django ORM.
+        Здесь же собраны метрики по созданию тем, комментариям и реакциям пользователей.
+    </p>
 
     <section class="detail-card">
         <h3>Загрузка файла на сервер</h3>
@@ -44,6 +47,10 @@
             <strong>{{ average_views|floatformat:2 }}</strong>
             <span>среднее число просмотров через Avg()</span>
         </div>
+        <div class="stat-card">
+            <strong>{{ average_likes|floatformat:2 }}</strong>
+            <span>среднее число лайков через Avg()</span>
+        </div>
     </div>
 
     <div class="stats-grid">
@@ -66,6 +73,20 @@
         {% endfor %}
     </div>
 
+    <div class="stats-grid">
+        {% for item in orm_reaction_counts %}
+            <div class="stat-card">
+                <strong>{{ item.total }}</strong>
+                <span>Реакция: {{ item.value|capfirst }}</span>
+            </div>
+        {% empty %}
+            <div class="stat-card">
+                <strong>0</strong>
+                <span>Реакции пока не добавлены</span>
+            </div>
+        {% endfor %}
+    </div>
+
     <section class="detail-card">
         <h3>Темы с вычисляемым полем activity_score</h3>
         <ul class="comment-list">
@@ -75,6 +96,8 @@
                     <p class="detail-meta">
                         Просмотры: {{ item.passport.views_count }} |
                         Комментарии: {{ item.comment_count }} |
+                        Лайки: {{ item.like_count }} |
+                        Дизлайки: {{ item.dislike_count }} |
                         Теги: {{ item.tag_count }} |
                         activity_score: {{ item.activity_score }}
                     </p>
@@ -85,5 +108,10 @@
         </ul>
     </section>
 
-    <p>На сайте доступны создание, изменение, удаление, выборка, фильтрация и сортировка записей. Поиск использует Q, статистика строится через values(), annotate(), Count(), Avg(), F() и Value(), а детальная страница темы открывается по ее слагу без использования Django Forms.</p>
+    <p>
+        На сайте доступны создание, изменение и удаление тем, выборка, фильтрация и сортировка записей, комментарии,
+        а также однокликовые реакции пользователей. Поиск использует Q, статистика строится через values(), annotate(),
+        Count(), Avg(), F() и Value(), а детальная страница темы открывается по ее слагу и содержит форму комментария
+        и кнопки лайка/дизлайка.
+    </p>
 {% endblock %}

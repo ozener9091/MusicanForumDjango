@@ -3,18 +3,19 @@ from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.db.models import Avg, Count, F, IntegerField, Prefetch, Value
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db.models import Avg, Count, F, Prefetch, Q, Value
 from django.db.models.functions import Coalesce
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.utils.text import get_valid_filename
 from django.views import View
 from django.views.generic import DetailView, ListView, TemplateView
 from django.views.generic.edit import CreateView, DeleteView, FormView, UpdateView
 
-from .forms import DiscussionModelForm, DiscussionSimpleForm, UploadFileForm
-from .models import Comment, Discussion
+from .forms import CommentForm, DiscussionModelForm, DiscussionSimpleForm, UploadFileForm
+from .models import Comment, Discussion, DiscussionReaction, ReactionValue
 from .utils import DataMixin
 
 
@@ -45,11 +46,27 @@ def _build_filters(request, current_category=""):
 
 def _get_discussion_queryset():
     return (
-        Discussion.objects.select_related("passport")
-        .prefetch_related("tags")
+        Discussion.objects.select_related("passport", "created_by")
+        .prefetch_related(
+            Prefetch(
+                "comments",
+                queryset=Comment.objects.select_related("created_by").order_by("created_at", "id"),
+            ),
+            "tags",
+        )
         .annotate(
             comment_count=Count("comments", distinct=True),
             tag_count=Count("tags", distinct=True),
+            like_count=Count(
+                "reactions",
+                filter=Q(reactions__value=ReactionValue.LIKE),
+                distinct=True,
+            ),
+            dislike_count=Count(
+                "reactions",
+                filter=Q(reactions__value=ReactionValue.DISLIKE),
+                distinct=True,
+            ),
         )
     )
 
@@ -70,11 +87,21 @@ def _get_initial_category(request):
     return category if category in valid_categories else ""
 
 
+def _user_display_name(user):
+    full_name = (user.get_full_name() or "").strip()
+    return full_name or user.get_username()
+
+
+def _build_discussion_owner(discussion, user):
+    discussion.created_by = user
+    discussion.author = _user_display_name(user)
+
+
 def handle_uploaded_file(uploaded_file):
     base_dir = Path(settings.MEDIA_ROOT) / "uploads"
     base_dir.mkdir(parents=True, exist_ok=True)
 
-    source_name = Path(uploaded_file.name)
+    source_name = Path(get_valid_filename(uploaded_file.name))
     suffix = source_name.suffix
     random_name = f"{source_name.stem}_{uuid.uuid4().hex}{suffix}"
 
@@ -111,10 +138,23 @@ class AboutView(LoginRequiredMixin, DataMixin, View):
             Discussion.objects.select_related("passport")
             .annotate(
                 comment_count=Count("comments", distinct=True),
-                tag_count=Count("tags", distinct=True),
+                like_count=Count(
+                    "reactions",
+                    filter=Q(reactions__value=ReactionValue.LIKE),
+                    distinct=True,
+                ),
+                dislike_count=Count(
+                    "reactions",
+                    filter=Q(reactions__value=ReactionValue.DISLIKE),
+                    distinct=True,
+                ),
                 activity_score=Coalesce(F("passport__views_count"), Value(0))
                 + Count("comments", distinct=True)
-                + Value(1, output_field=IntegerField()),
+                + Count(
+                    "reactions",
+                    filter=Q(reactions__value=ReactionValue.LIKE),
+                    distinct=True,
+                ),
             )
             .order_by("-activity_score", "title")
         )
@@ -130,9 +170,15 @@ class AboutView(LoginRequiredMixin, DataMixin, View):
             .annotate(total=Count("id"))
             .order_by("tags__name")
         )
+        orm_reaction_counts = (
+            DiscussionReaction.objects.values("value")
+            .annotate(total=Count("id"))
+            .order_by("value")
+        )
         aggregate_stats = annotated_discussions.aggregate(
             average_comments=Avg("comment_count"),
             average_views=Avg("passport__views_count"),
+            average_likes=Avg("like_count"),
         )
 
         return self.get_mixin_context(
@@ -143,9 +189,11 @@ class AboutView(LoginRequiredMixin, DataMixin, View):
             active_discussions=Discussion.objects.exclude(status=Discussion.Status.ARCHIVED).count(),
             orm_status_counts=orm_status_counts,
             orm_tag_counts=orm_tag_counts,
+            orm_reaction_counts=orm_reaction_counts,
             top_discussions=top_discussions,
             average_comments=aggregate_stats["average_comments"] or 0,
             average_views=aggregate_stats["average_views"] or 0,
+            average_likes=aggregate_stats["average_likes"] or 0,
         )
 
     def get(self, request, *args, **kwargs):
@@ -212,17 +260,23 @@ class DiscussionDetailView(DataMixin, DetailView):
     slug_url_kwarg = "slug"
 
     def get_queryset(self):
-        return _get_discussion_queryset().prefetch_related(
-            Prefetch("comments", queryset=Comment.objects.order_by("created_at", "id"))
-        )
+        return _get_discussion_queryset()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user_reaction = None
+        if self.request.user.is_authenticated:
+            user_reaction = self.object.reactions.filter(user=self.request.user).first()
+
         return self.get_mixin_context(
             context,
             title=self.object.title,
             category=Discussion.get_category_data(self.object.category),
             current_category=self.object.category,
+            comment_form=CommentForm(),
+            can_edit_discussion=self.request.user.is_authenticated
+            and (self.request.user.is_staff or self.object.created_by_id == self.request.user.id),
+            user_reaction=user_reaction,
         )
 
 
@@ -236,17 +290,15 @@ class DiscussionToolsView(DataMixin, TemplateView):
             context,
             total_discussions=Discussion.objects.count(),
             published_discussions=Discussion.objects.published().count(),
-            latest_discussions=Discussion.objects.order_by("-created_at")[:5],
+            latest_discussions=_get_discussion_queryset().order_by("-created_at")[:5],
         )
 
 
-class DiscussionCreateFormView(PermissionRequiredMixin, DataMixin, FormView):
+class DiscussionCreateFormView(LoginRequiredMixin, DataMixin, FormView):
     form_class = DiscussionSimpleForm
     template_name = "musicforum/discussion_form.html"
     title_page = "Новая тема (обычная форма)"
     success_url = reverse_lazy("musicforum:index")
-    permission_required = "musicforum.add_discussion"
-    raise_exception = True
 
     def get_initial(self):
         initial = super().get_initial()
@@ -259,10 +311,12 @@ class DiscussionCreateFormView(PermissionRequiredMixin, DataMixin, FormView):
         self.object = Discussion.objects.create(
             title=form.cleaned_data["title"],
             slug=form.cleaned_data["slug"],
-            author=form.cleaned_data["author"],
             category=form.cleaned_data["category"],
             status=form.cleaned_data["status"],
             content=form.cleaned_data["content"],
+            photo=form.cleaned_data["photo"],
+            author=_user_display_name(self.request.user),
+            created_by=self.request.user,
         )
         self.object.tags.set(form.cleaned_data["tags"])
         messages.success(self.request, "Тема успешно создана через обычную форму.")
@@ -281,13 +335,11 @@ class DiscussionCreateSimpleView(DiscussionCreateFormView):
     pass
 
 
-class DiscussionCreateView(PermissionRequiredMixin, DataMixin, CreateView):
+class DiscussionCreateView(LoginRequiredMixin, DataMixin, CreateView):
     model = Discussion
     form_class = DiscussionModelForm
     template_name = "musicforum/discussion_form.html"
     title_page = "Новая тема"
-    permission_required = "musicforum.add_discussion"
-    raise_exception = True
 
     def get_initial(self):
         initial = super().get_initial()
@@ -297,6 +349,8 @@ class DiscussionCreateView(PermissionRequiredMixin, DataMixin, CreateView):
         return initial
 
     def form_valid(self, form):
+        form.instance.author = _user_display_name(self.request.user)
+        form.instance.created_by = self.request.user
         response = super().form_valid(form)
         messages.success(self.request, "Тема успешно создана через ModelForm.")
         return response
@@ -310,17 +364,25 @@ class DiscussionCreateView(PermissionRequiredMixin, DataMixin, CreateView):
         )
 
 
-class DiscussionUpdateView(PermissionRequiredMixin, DataMixin, UpdateView):
+class DiscussionOwnerRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    raise_exception = True
+
+    def test_func(self):
+        discussion = self.get_object()
+        return self.request.user.is_staff or discussion.created_by_id == self.request.user.id
+
+
+class DiscussionUpdateView(DiscussionOwnerRequiredMixin, DataMixin, UpdateView):
     model = Discussion
     form_class = DiscussionModelForm
     template_name = "musicforum/discussion_form.html"
     title_page = "Редактирование темы"
     slug_field = "slug"
     slug_url_kwarg = "slug"
-    permission_required = "musicforum.change_discussion"
-    raise_exception = True
 
     def form_valid(self, form):
+        form.instance.created_by = self.object.created_by or self.request.user
+        form.instance.author = self.object.author or _user_display_name(self.request.user)
         response = super().form_valid(form)
         messages.success(self.request, "Тема успешно обновлена.")
         return response
@@ -336,7 +398,7 @@ class DiscussionUpdateView(PermissionRequiredMixin, DataMixin, UpdateView):
         )
 
 
-class DiscussionDeleteView(PermissionRequiredMixin, DataMixin, DeleteView):
+class DiscussionDeleteView(DiscussionOwnerRequiredMixin, DataMixin, DeleteView):
     model = Discussion
     template_name = "musicforum/discussion_confirm_delete.html"
     context_object_name = "discussion"
@@ -344,8 +406,6 @@ class DiscussionDeleteView(PermissionRequiredMixin, DataMixin, DeleteView):
     slug_field = "slug"
     slug_url_kwarg = "slug"
     success_url = reverse_lazy("musicforum:index")
-    permission_required = "musicforum.delete_discussion"
-    raise_exception = True
 
     def form_valid(self, form):
         messages.success(self.request, "Тема удалена.")
@@ -357,3 +417,61 @@ class DiscussionDeleteView(PermissionRequiredMixin, DataMixin, DeleteView):
             context,
             current_category=self.object.category,
         )
+
+
+class DiscussionCommentCreateView(LoginRequiredMixin, CreateView):
+    model = Comment
+    form_class = CommentForm
+    http_method_names = ["post"]
+
+    def dispatch(self, request, *args, **kwargs):
+        self.discussion = get_object_or_404(Discussion, slug=kwargs["slug"])
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        form.instance.discussion = self.discussion
+        form.instance.created_by = self.request.user
+        form.instance.author = _user_display_name(self.request.user)
+        response = super().form_valid(form)
+        messages.success(self.request, "Комментарий добавлен.")
+        return response
+
+    def form_invalid(self, form):
+        for field_errors in form.errors.values():
+            for error in field_errors:
+                messages.error(self.request, error)
+        return redirect(f"{self.discussion.get_absolute_url()}#comments")
+
+    def get_success_url(self):
+        return f"{self.discussion.get_absolute_url()}#comments"
+
+
+class DiscussionReactionToggleView(LoginRequiredMixin, View):
+    http_method_names = ["post"]
+
+    def dispatch(self, request, *args, **kwargs):
+        self.discussion = get_object_or_404(Discussion, slug=kwargs["slug"])
+        self.value = kwargs["value"]
+        if self.value not in {value for value, _ in ReactionValue.choices}:
+            raise Http404("Реакция не найдена")
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        reaction, created = DiscussionReaction.objects.get_or_create(
+            discussion=self.discussion,
+            user=request.user,
+            defaults={"value": self.value},
+        )
+
+        if not created:
+            if reaction.value == self.value:
+                reaction.delete()
+                messages.success(request, "Реакция удалена.")
+            else:
+                reaction.value = self.value
+                reaction.save(update_fields=["value"])
+                messages.success(request, "Реакция обновлена.")
+        else:
+            messages.success(request, "Реакция сохранена.")
+
+        return redirect(self.discussion.get_absolute_url())
